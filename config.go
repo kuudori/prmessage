@@ -24,11 +24,7 @@ type SlackConfig struct {
 }
 
 func configDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		die("Cannot determine home directory: %v", err)
-	}
-	return filepath.Join(home, configDirName)
+	return filepath.Join(mustHomeDir(), configDirName)
 }
 
 func configPath() string {

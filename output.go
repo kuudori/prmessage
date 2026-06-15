@@ -5,6 +5,14 @@ import (
 	"os"
 )
 
+func mustHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		die("Cannot determine home directory: %v", err)
+	}
+	return home
+}
+
 var verbose bool
 
 func red(s string) string    { return "\033[0;31m" + s + "\033[0m" }

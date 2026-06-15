@@ -21,11 +21,7 @@ import (
 var xoxcRe = regexp.MustCompile(`xoxc-[a-zA-Z0-9_-]+`)
 
 func slackDataDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		die("Cannot determine home directory: %v", err)
-	}
-	return filepath.Join(home, "Library", "Application Support", "Slack")
+	return filepath.Join(mustHomeDir(), "Library", "Application Support", "Slack")
 }
 
 func extractSlackTokens() (token, cookie string, err error) {
