@@ -88,6 +88,7 @@ Interactive setup that:
 | `prmessage init` | Set up Slack tokens and config |
 | `prmessage send` | Send PR message to Slack |
 | `prmessage send -n` | Preview without sending |
-| `prmessage update` | Update instructions |
+| `prmessage update` | Self-update to latest release |
+| `prmessage update -f` | Force re-download |
 | `prmessage version` | Show version |
 | `prmessage help` | Show help |

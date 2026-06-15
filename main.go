@@ -22,7 +22,7 @@ func main() {
 	case "send":
 		cmdSend(os.Args[2:])
 	case "update":
-		cmdUpdate()
+		cmdUpdate(os.Args[2:])
 	case "version":
 		fmt.Printf("prmessage %s\n", version)
 	case "help", "-h", "--help":
@@ -44,7 +44,8 @@ Commands:
   init       Extract Slack tokens and set up config
   send       Send PR message to Slack
   send -n    Preview message without sending (dry run)
-  update     Update prmessage to latest version
+  update     Self-update to latest version
+  update -f  Force re-download even if current
   version    Show version
   help       Show this help
 
@@ -56,17 +57,26 @@ Get started:
 `, version)
 }
 
-func cmdUpdate() {
-	// Placeholder for future self-update when repo is available
-	fmt.Println("Self-update is not yet available.")
-	fmt.Println()
-	fmt.Println("To update manually:")
-	fmt.Println("  cd /path/to/prmessage")
-	fmt.Println("  git pull")
-	fmt.Println("  go build -o prmessage .")
-	fmt.Println("  cp prmessage ~/bin/")
-	fmt.Println()
-	fmt.Printf("Current version: %s\n", version)
+func cmdUpdate(args []string) {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+	var force bool
+	fs.BoolVar(&force, "f", false, "Force update even if already latest")
+	fs.BoolVar(&verbose, "v", false, "Verbose output")
+	fs.Parse(args)
+
+	info("Checking for updates...")
+	latest := checkLatestVersion()
+	debug("Current: %s, Latest: %s", version, latest)
+
+	if latest == version && !force {
+		info("Already on latest version (%s)", version)
+		return
+	}
+
+	info("Updating %s → %s", version, latest)
+	tmpPath := downloadAsset(latest)
+	selfReplace(tmpPath)
+	info("Updated to %s", latest)
 }
 
 func cmdSend(args []string) {
@@ -147,7 +157,7 @@ Requires: git, gh (GitHub CLI), jira (Jira CLI)
 		wg         sync.WaitGroup
 	)
 	wg.Add(2)
-	go func() { defer wg.Done(); prURL, prNumber = fetchPRInfo() }()
+	go func() { defer wg.Done(); prURL, prNumber = fetchPRInfo(branch) }()
 	go func() { defer wg.Done(); ticketData = fetchTicketInfo(ticket) }()
 	wg.Wait()
 
