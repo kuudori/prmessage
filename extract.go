@@ -55,14 +55,24 @@ func extractTokenFromLevelDB(dbPath string) (string, error) {
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 
+	var tokens []string
+	seen := make(map[string]bool)
 	for iter.Next() {
-		val := string(iter.Value())
-		if m := xoxcRe.FindString(val); len(m) > 100 {
-			return m, nil
+		for _, m := range xoxcRe.FindAllString(string(iter.Value()), -1) {
+			if len(m) > 100 && !seen[m] {
+				seen[m] = true
+				tokens = append(tokens, m)
+			}
 		}
 	}
 
-	return "", fmt.Errorf("no xoxc token found in Slack local storage")
+	if len(tokens) == 0 {
+		return "", fmt.Errorf("no xoxc token found in Slack local storage")
+	}
+	if len(tokens) > 1 {
+		warn("Found %d Slack workspace tokens; using the first. Edit slack.token in the config to switch workspaces.", len(tokens))
+	}
+	return tokens[0], nil
 }
 
 func extractCookieFromDB(dbPath string) (string, error) {
@@ -121,7 +131,6 @@ func getSlackSafeStorageKey() (string, error) {
 	}
 	return strings.TrimSpace(string(out)), nil
 }
-
 
 func decryptAESCBC(key, ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)

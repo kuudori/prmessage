@@ -87,6 +87,7 @@ func cmdSend(args []string) {
 		flagTicket  string
 		flagProject string
 		flagMessage string
+		flagThread  string
 		flagDryRun  bool
 	)
 
@@ -94,6 +95,7 @@ func cmdSend(args []string) {
 	fs.StringVar(&flagTicket, "t", "", "Override ticket number")
 	fs.StringVar(&flagProject, "p", "", "Override project name")
 	fs.StringVar(&flagMessage, "m", "", "Override message template (one-shot)")
+	fs.StringVar(&flagThread, "r", "", "Reply in thread (message ts or permalink)")
 	fs.BoolVar(&flagDryRun, "n", false, "Dry run (preview only)")
 	fs.BoolVar(&verbose, "v", false, "Verbose output")
 
@@ -105,6 +107,7 @@ Options:
   -t TICKET     Override ticket number
   -p PROJECT    Override project name
   -m TEMPLATE   Override message template (one-shot)
+  -r THREAD     Reply in a thread (message ts or pasted permalink)
   -n            Preview message without sending
   -v            Verbose output
 
@@ -121,22 +124,23 @@ Requires: git, gh (GitHub CLI), jira (Jira CLI)
 
 	cfg := loadConfig()
 
-	channel := flagChannel
-	if channel == "" {
-		channel = cfg.Slack.Channel
-	}
-
 	project := flagProject
 	if project == "" {
 		project = detectProject()
 	}
 	debug("Project: %s", project)
 
+	channel := cfg.resolveChannel(flagChannel, project)
+	if channel == "" {
+		die("No channel for project %q — set slack.channel or a channels entry in %s, or pass -c.", project, configPath())
+	}
+	debug("Channel: %s", channel)
+
 	branch := detectBranch()
 	if branch == "" {
 		die("Detached HEAD — cannot determine branch")
 	}
-	if branch == "main" || branch == "master" {
+	if cfg.isProtectedBranch(branch) {
 		die("On %s branch — switch to a feature branch first", branch)
 	}
 	debug("Branch: %s", branch)
@@ -185,6 +189,7 @@ Requires: git, gh (GitHub CLI), jira (Jira CLI)
 	}
 
 	rendered := renderTemplate(tmpl, vars)
+	threadTS := parseThreadTS(flagThread)
 
 	if flagDryRun {
 		fmt.Println()
@@ -193,6 +198,9 @@ Requires: git, gh (GitHub CLI), jira (Jira CLI)
 		fmt.Printf("Project: %s\n", project)
 		fmt.Printf("Branch:  %s\n", branch)
 		fmt.Printf("Ticket:  %s\n", ticket)
+		if threadTS != "" {
+			fmt.Printf("Thread:  %s\n", threadTS)
+		}
 		fmt.Println()
 		bold("Message:")
 		fmt.Println(rendered)
@@ -200,5 +208,9 @@ Requires: git, gh (GitHub CLI), jira (Jira CLI)
 		return
 	}
 
-	sendSlackMessage(cfg.Slack, channel, rendered)
+	if cfg.Slack.Token == "" {
+		die("No Slack token in config. Run 'prmessage init' to set up.")
+	}
+
+	sendSlackMessage(cfg.Slack, channel, rendered, threadTS)
 }

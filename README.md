@@ -28,7 +28,10 @@ prmessage send        # send message
 prmessage send -n     # dry run (preview)
 prmessage send -c CH  # override channel
 prmessage send -t TKT # override ticket
+prmessage send -r TS  # reply in a thread (message ts or pasted permalink)
 ```
+
+After a successful send, prmessage prints the message permalink.
 
 ## Setup
 
@@ -56,6 +59,22 @@ Interactive setup that:
 ~/.config/prmessage/template.txt  # Message template
 ```
 
+```yaml
+slack:
+  token: xoxc-...
+  cookie: xoxd-...
+  channel: C01DEFAULT        # default channel
+channels:                    # optional: per-project overrides (by repo name)
+  my-repo: C01TEAMA
+  other-repo: "#releases"
+protected_branches:          # optional: refuse to send from these (default: main, master)
+  - main
+  - master
+  - release
+```
+
+Channel is chosen in order: `-c` flag → `channels` entry for the current project → `slack.channel`.
+
 ### Template placeholders
 
 | Placeholder | Source |
@@ -77,7 +96,7 @@ Interactive setup that:
 
 ## Guards
 
-* Refuses to send on `main`/`master` branch
+* Refuses to send on a protected branch (`main`/`master` by default; see `protected_branches`)
 * Refuses to send without ticket in branch name
 * Refuses to send without open PR
 

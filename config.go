@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -14,13 +15,37 @@ import (
 const configDirName = ".config/prmessage"
 
 type Config struct {
-	Slack SlackConfig `yaml:"slack"`
+	Slack             SlackConfig       `yaml:"slack"`
+	Channels          map[string]string `yaml:"channels,omitempty"`
+	ProtectedBranches []string          `yaml:"protected_branches,omitempty"`
 }
 
 type SlackConfig struct {
 	Token   string `yaml:"token"`
 	Cookie  string `yaml:"cookie,omitempty"`
 	Channel string `yaml:"channel"`
+}
+
+var defaultProtectedBranches = []string{"main", "master"}
+
+// resolveChannel picks the channel to post to: an explicit override wins,
+// then a per-project mapping, then the default channel.
+func (c *Config) resolveChannel(override, project string) string {
+	if override != "" {
+		return override
+	}
+	if ch, ok := c.Channels[project]; ok && ch != "" {
+		return ch
+	}
+	return c.Slack.Channel
+}
+
+func (c *Config) isProtectedBranch(branch string) bool {
+	protected := c.ProtectedBranches
+	if len(protected) == 0 {
+		protected = defaultProtectedBranches
+	}
+	return slices.Contains(protected, branch)
 }
 
 func configDir() string {
@@ -50,13 +75,8 @@ func loadConfig() *Config {
 		die("Failed to parse config: %v", err)
 	}
 
-	if cfg.Slack.Token == "" {
-		die("No Slack token in config. Run 'prmessage init' to set up.")
-	}
-	if cfg.Slack.Channel == "" {
-		die("No Slack channel in config. Run 'prmessage init' to set up.")
-	}
-
+	// Token and channel are validated where they're used, not here: a dry run
+	// needs no token, and -c / per-project channels can supply the channel.
 	return &cfg
 }
 
@@ -118,6 +138,10 @@ func initConfig() {
 		if cookie != "" {
 			info("Cookie: %s...%s", cookie[:20], cookie[len(cookie)-6:])
 		}
+	}
+
+	if strings.HasPrefix(token, "xoxc-") && cookie == "" {
+		warn("No 'd' cookie present — xoxc tokens need it to authenticate, so sends will fail until you add slack.cookie to the config.")
 	}
 
 	fmt.Println("  Tip: right-click a channel name in Slack → Copy → Copy link")
