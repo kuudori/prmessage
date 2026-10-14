@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-const version = "0.1.1"
+const version = "0.1.2"
 
 func main() {
 	if len(os.Args) < 2 {
